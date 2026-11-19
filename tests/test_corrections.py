@@ -735,6 +735,7 @@ class FactRepairTests(unittest.TestCase):
                 raise llm.LLMError(
                     "Ollama не ответила, код 503. Подождите загрузку модели или перезапустите Ollama.",
                     status_code=503,
+                    retryable=True,
                 )
             return {"message": {"content": "готово"}}
 
@@ -767,11 +768,33 @@ class FactRepairTests(unittest.TestCase):
         self.assertEqual(len(calls), 1)
         self.assertEqual(caught.exception.status_code, 502)
 
+    def test_connect_error_is_not_retried(self) -> None:
+        import httpx
+
+        import app.llm as llm
+
+        calls: list[int] = []
+        original = llm._post_stream
+
+        def fake_stream(url: str, payload: dict, settings) -> dict:
+            calls.append(1)
+            raise llm._transport_failure(httpx.ConnectError("refused"), "Ollama", settings.base_url)
+
+        llm._post_stream = fake_stream
+        try:
+            with self.assertRaises(llm.LLMError) as caught:
+                llm._post_ollama("http://192.0.2.1:11434/api/chat", {"model": "x"}, llm.LLMSettings.from_env())
+        finally:
+            llm._post_stream = original
+        self.assertEqual(len(calls), 1)
+        self.assertIn("ollama.txt", caught.exception.message)
+
     def test_empty_503_message_names_the_code(self) -> None:
         import app.llm as llm
 
         error = llm._http_failure("Ollama", 503, "")
         self.assertEqual(error.status_code, 503)
+        self.assertTrue(error.retryable)
         self.assertIn("код 503", str(error))
         self.assertIn("перезапустите Ollama", str(error))
 
@@ -792,8 +815,18 @@ class FactRepairTests(unittest.TestCase):
         self.assertIn("перезапустите Ollama", str(error))
         dropped = llm._transport_failure(httpx.RemoteProtocolError("Server disconnected"), "Ollama")
         self.assertEqual(dropped.status_code, 503)
+        self.assertTrue(dropped.retryable)
         self.assertIn("не ответила", str(dropped))
         self.assertIn("перезапустите Ollama", str(dropped))
+        refused = llm._transport_failure(
+            httpx.ConnectError("refused"),
+            "Ollama",
+            "http://10.0.0.5:11434",
+        )
+        self.assertEqual(refused.status_code, 503)
+        self.assertFalse(refused.retryable)
+        self.assertIn("10.0.0.5:11434", str(refused))
+        self.assertIn("ollama.txt", str(refused))
         timed_out = llm._transport_failure(httpx.ReadTimeout("timed out"), "Ollama")
         self.assertEqual(timed_out.status_code, 504)
 
@@ -867,6 +900,69 @@ class FactRepairTests(unittest.TestCase):
             self.assertIn("Очередь заполнена", response.json()["detail"])
         finally:
             main._reset_model_queue()
+
+    def test_stats_failure_still_returns_the_text(self) -> None:
+        import json
+
+        from fastapi.testclient import TestClient
+
+        from app import main
+
+        def fake_rewrite(text, style, terms, model, on_progress=None):
+            return "Готово."
+
+        def denied():
+            raise PermissionError("denied")
+
+        original_rewrite = main.rewrite_text
+        original_add = main.add_rewrite
+        main.rewrite_text = fake_rewrite
+        main.add_rewrite = denied
+        main._reset_model_queue()
+        try:
+            response = TestClient(main.app).post(
+                "/api/rewrite",
+                json={"text": "Исходный текст.", "style": "simple", "request_id": "stats-fail"},
+            )
+            self.assertEqual(response.status_code, 200)
+            lines = [json.loads(line) for line in response.text.splitlines() if line.strip()]
+            result = next(item for item in lines if item["type"] == "result")
+            self.assertEqual(result["result"], "Готово.")
+        finally:
+            main.rewrite_text = original_rewrite
+            main.add_rewrite = original_add
+            main._reset_model_queue()
+
+    def test_unexpected_failure_names_the_reason(self) -> None:
+        import json
+
+        from fastapi.testclient import TestClient
+
+        from app import main
+
+        def broken(text, style, terms, model, on_progress=None):
+            raise RuntimeError("сломанный кусок")
+
+        original_rewrite = main.rewrite_text
+        main.rewrite_text = broken
+        main._reset_model_queue()
+        try:
+            response = TestClient(main.app).post(
+                "/api/rewrite",
+                json={"text": "Исходный текст.", "style": "simple", "request_id": "broken-job"},
+            )
+            lines = [json.loads(line) for line in response.text.splitlines() if line.strip()]
+            detail = next(item["detail"] for item in lines if item["type"] == "error")
+            self.assertIn("сломанный кусок", detail)
+        finally:
+            main.rewrite_text = original_rewrite
+            main._reset_model_queue()
+
+    def test_lone_surrogate_does_not_break_the_request(self) -> None:
+        from app.main import RewriteRequest
+
+        payload = RewriteRequest(text="Привет \ud800", style="simple")
+        payload.text.encode("utf-8")
 
 
 class StoreTests(unittest.TestCase):

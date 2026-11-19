@@ -41,6 +41,7 @@ exe = EXE(
     a.datas,
     [],
     name="Rewriter",
+    icon=str(root / "exe" / "rewriter.ico"),
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

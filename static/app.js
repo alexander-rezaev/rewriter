@@ -1046,7 +1046,12 @@ async function postStream(url, body, signal, onProgress) {
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    throw new Error(errorMessage(payload, "Не удалось обработать текст."));
+    throw new Error(
+      errorMessage(
+        payload,
+        `Программа не приняла запрос, код ${response.status}. Если на компьютере включён прокси, закройте окно и снова откройте Rewriter.exe.`,
+      ),
+    );
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -1060,7 +1065,14 @@ async function postStream(url, body, signal, onProgress) {
     buffer = lines.pop() || "";
     lines.forEach((line) => {
       if (!line.trim()) return;
-      const event = JSON.parse(line);
+      let event;
+      try {
+        event = JSON.parse(line);
+      } catch {
+        throw new Error(
+          "Ответ программы оборвался. Если на компьютере включён прокси, закройте окно и снова откройте Rewriter.exe.",
+        );
+      }
       if (event.type === "queue") showQueue(event.ahead, event.wait);
       if (event.type === "progress" && onProgress) onProgress(event.done, event.total, event.text);
       if (event.type === "error") throw new Error(event.detail || "Не удалось обработать текст.");

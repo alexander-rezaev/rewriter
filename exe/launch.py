@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import threading
 import time
@@ -23,13 +24,60 @@ def _say(text: str) -> None:
         print(text.encode("utf-8", errors="replace").decode("ascii", errors="replace"), flush=True)
 
 
+def _browser_candidates() -> list[Path]:
+    roots = [os.environ.get("PROGRAMFILES", ""), os.environ.get("PROGRAMFILES(X86)", "")]
+    local = os.environ.get("LOCALAPPDATA", "")
+    found: list[Path] = []
+    for root in roots:
+        if not root:
+            continue
+        found.append(Path(root) / "Microsoft" / "Edge" / "Application" / "msedge.exe")
+        found.append(Path(root) / "Google" / "Chrome" / "Application" / "chrome.exe")
+    if local:
+        found.append(Path(local) / "Google" / "Chrome" / "Application" / "chrome.exe")
+        found.append(Path(local) / "Yandex" / "YandexBrowser" / "Application" / "browser.exe")
+    return [path for path in found if path.is_file()]
+
+
+def _open_without_proxy(url: str) -> bool:
+    """A workplace proxy intercepts 127.0.0.1 and the page then shows a generic failure."""
+    browsers = _browser_candidates()
+    if not browsers:
+        return False
+    profile = Path(os.environ.get("TEMP", ".")) / "RewriterBrowser"
+    try:
+        profile.mkdir(parents=True, exist_ok=True)
+        subprocess.Popen(
+            [
+                str(browsers[0]),
+                f"--user-data-dir={profile}",
+                "--no-proxy-server",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--disable-sync",
+                f"--app={url}",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError:
+        return False
+    return True
+
+
 def _open_when_ready(url: str) -> None:
     import urllib.request
 
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     for _ in range(50):
         try:
-            urllib.request.urlopen(url + "/health", timeout=1)
-            webbrowser.open(url)
+            with opener.open(url + "/health", timeout=1):
+                pass
+            if _open_without_proxy(url):
+                _say("Браузер открыт без системного прокси.")
+            else:
+                webbrowser.open(url)
+                _say("Если текст не обрабатывается, добавьте 127.0.0.1 в исключения прокси.")
             return
         except Exception:
             time.sleep(0.2)

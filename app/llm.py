@@ -110,10 +110,11 @@ class CorrectionResult:
 
 
 class LLMError(Exception):
-    def __init__(self, message: str, status_code: int = 502) -> None:
+    def __init__(self, message: str, status_code: int = 502, *, retryable: bool = False) -> None:
         super().__init__(message)
         self.message = message
         self.status_code = status_code
+        self.retryable = retryable
 
 
 _LLAMA_BACKENDS = {
@@ -332,29 +333,34 @@ def _status_failure(response: httpx.Response, service: str) -> LLMError:
     return _http_failure(service, response.status_code, raw)
 
 
-def _transport_failure(exc: Exception, service: str) -> LLMError | None:
+def _connect_message(service: str, address: str) -> str:
+    where = f" по адресу {address}" if address else ""
+    return (
+        f"Не удалось подключиться к {service}{where}. "
+        "Проверьте, что служба запущена. В программе адрес записан в файле ollama.txt."
+    )
+
+
+def _is_connect_failure(exc: Exception) -> bool:
+    if isinstance(exc, (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout, httpx.UnsupportedProtocol, ConnectionError)):
+        return True
+    return type(exc).__name__ in {"ConnectError", "ConnectTimeout", "PoolTimeout", "UnsupportedProtocol", "InvalidURL"}
+
+
+def _transport_failure(exc: Exception, service: str, address: str = "") -> LLMError | None:
     """Turn a dropped Ollama connection into the same advice as an empty 503."""
-    if isinstance(exc, (httpx.ConnectTimeout, httpx.PoolTimeout)):
-        return LLMError(
-            f"Не удалось подключиться к {service}. "
-            "Проверьте, что сервис запущен, а LLM_BACKEND и LLM_BASE_URL указаны верно.",
-            status_code=503,
-        )
-    if isinstance(exc, httpx.TimeoutException):
+    if _is_connect_failure(exc):
+        return LLMError(_connect_message(service, address), status_code=503)
+    if isinstance(exc, httpx.TimeoutException) or type(exc).__name__ in {"ReadTimeout", "WriteTimeout"}:
         return LLMError(
             "Модель не ответила вовремя. Попробуйте более короткий текст или увеличьте LLM_TIMEOUT.",
             status_code=504,
         )
-    if isinstance(exc, httpx.ConnectError):
-        return LLMError(
-            f"Не удалось подключиться к {service}. "
-            "Проверьте, что сервис запущен, а LLM_BACKEND и LLM_BASE_URL указаны верно.",
-            status_code=503,
-        )
-    if isinstance(exc, httpx.TransportError):
+    if isinstance(exc, httpx.TransportError) or type(exc).__module__.startswith(("httpx", "httpcore")):
         return LLMError(
             f"{service} не ответила. Подождите загрузку модели или перезапустите {service}.",
             status_code=503,
+            retryable=True,
         )
     return None
 
@@ -365,10 +371,15 @@ def _http_failure(service: str, status: int, raw: str) -> LLMError:
             f"{service} не ответила, код 503. "
             f"Подождите загрузку модели или перезапустите {service}.",
             status_code=503,
+            retryable=True,
         )
     detail = _decode_error_body(raw, service)
     if status == 503:
-        return LLMError(f"{service} не ответила, код 503. {detail}", status_code=503)
+        return LLMError(
+            f"{service} не ответила, код 503. {detail}",
+            status_code=503,
+            retryable=True,
+        )
     return LLMError(f"{service} отклонила запрос: {detail}", status_code=502)
 
 
@@ -482,7 +493,7 @@ def _post_stream(url: str, payload: dict, settings: LLMSettings) -> dict:
                 "Модель не ответила вовремя. Попробуйте более короткий текст или увеличьте LLM_TIMEOUT.",
                 status_code=504,
             ) from exc
-        mapped = _transport_failure(exc, service)
+        mapped = _transport_failure(exc, service, settings.base_url)
         if mapped is not None:
             raise mapped from exc
         raise
@@ -514,7 +525,7 @@ def _post_ollama(url: str, payload: dict, settings: LLMSettings) -> dict:
             return _post_stream(url, body, settings)
         except LLMError as exc:
             last = exc
-            if exc.status_code != 503 or attempt == _LOAD_TRIES - 1:
+            if exc.status_code != 503 or not exc.retryable or attempt == _LOAD_TRIES - 1:
                 raise
             _raise_if_cancelled()
             time.sleep(_LOAD_PAUSE)

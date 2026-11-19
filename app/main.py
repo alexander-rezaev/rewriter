@@ -5,6 +5,7 @@ import os
 import secrets
 import threading
 import time
+import traceback
 from pathlib import Path
 from urllib.parse import unquote
 
@@ -69,6 +70,20 @@ _jobs_guard = threading.Lock()
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
 
+def _clean_input(value: str, empty: str) -> str:
+    cleaned = value.encode("utf-8", "replace").decode("utf-8").strip()
+    if not cleaned:
+        raise ValueError(empty)
+    return cleaned
+
+
+def _unexpected_failure(exc: Exception) -> str:
+    detail = " ".join(str(exc).split()) or exc.__class__.__name__
+    if len(detail) > 180:
+        detail = detail[:180] + "…"
+    return f"Не удалось обработать текст. {detail}"
+
+
 class Segment(BaseModel):
     text: str
     kind: str | None = None
@@ -80,13 +95,12 @@ class RewriteRequest(BaseModel):
     model: str | None = None
     request_id: str | None = None
 
-    @field_validator("text")
+    @field_validator("text", mode="before")
     @classmethod
-    def text_not_blank(cls, value: str) -> str:
-        cleaned = value.strip()
-        if not cleaned:
+    def text_not_blank(cls, value: object) -> str:
+        if not isinstance(value, str):
             raise ValueError("Введите текст для переписывания.")
-        return cleaned
+        return _clean_input(value, "Введите текст для переписывания.")
 
 
 class RewriteResponse(BaseModel):
@@ -101,13 +115,12 @@ class ProofreadRequest(BaseModel):
     model: str | None = None
     request_id: str | None = None
 
-    @field_validator("text")
+    @field_validator("text", mode="before")
     @classmethod
-    def text_not_blank(cls, value: str) -> str:
-        cleaned = value.strip()
-        if not cleaned:
+    def text_not_blank(cls, value: object) -> str:
+        if not isinstance(value, str):
             raise ValueError("Введите текст для проверки.")
-        return cleaned
+        return _clean_input(value, "Введите текст для проверки.")
 
 
 class StopRequest(BaseModel):
@@ -401,8 +414,9 @@ def _stream_job(
             await queue.put({"type": "result", **value})
         except LLMError as exc:
             await queue.put({"type": "error", "detail": exc.message})
-        except Exception:
-            await queue.put({"type": "error", "detail": "Не удалось обработать текст."})
+        except Exception as exc:
+            traceback.print_exc()
+            await queue.put({"type": "error", "detail": _unexpected_failure(exc)})
         finally:
             if acquired:
                 _release_model()
@@ -545,8 +559,11 @@ async def rewrite(payload: RewriteRequest, request: Request) -> StreamingRespons
         result = rewrite_text(payload.text, style, terms, model, on_progress=on_progress)
         try:
             rewrites = add_rewrite()["rewrites"]
-        except StoreError:
-            rewrites = load_stats()["rewrites"]
+        except (StoreError, OSError):
+            try:
+                rewrites = load_stats()["rewrites"]
+            except OSError:
+                rewrites = 0
         return {
             "result": result,
             "segments": highlight_rewrite(payload.text, result),

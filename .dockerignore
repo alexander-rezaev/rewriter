@@ -1,0 +1,16 @@
+.git
+.venv
+venv
+__pycache__
+*.py[cod]
+.env
+dist
+ofline
+*.tar
+*.tar.gz
+README.md
+OFFLINE.md
+docker-compose.yml
+scripts
+.cursor
+data

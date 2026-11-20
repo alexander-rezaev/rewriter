@@ -1564,7 +1564,7 @@ mark.hl-punctuation.hl-gap {
 .foot {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--s-2) var(--s-4);
   margin-top: var(--s-7);
   padding-top: var(--s-4);
@@ -1896,11 +1896,6 @@ mark.hl-punctuation.hl-gap {
     top: var(--s-3);
     left: var(--s-3);
     right: var(--s-3);
-  }
-
-  .foot {
-    flex-direction: column;
-    gap: var(--s-1);
   }
 }
 

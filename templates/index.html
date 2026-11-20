@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block title %}Рерайтер: переписать текст и проверить орфографию{% endblock %}
-{% block description %}Локальный рерайтер команды: пересказ в выбранном стиле, проверка орфографии и согласование падежей. Без регистрации.{% endblock %}
+{% block description %}Рерайтер: переписывает текст в нужном стиле, проверяет орфографию и согласует падежи.{% endblock %}
 
 {% block rail_foot %}
 <button type="button" class="rail__link" id="model-unlock" {% if not model_choice %}hidden{% endif %}>
@@ -16,8 +16,7 @@
 <header class="head">
   <h1 class="head__title">Переписать текст в нужном стиле</h1>
   <p class="t-lead head__lead">
-    Пересказывает текст, проверяет орфографию и согласует падежи. Модель работает на этом
-    компьютере, регистрация не нужна.
+    Переписывает текст в нужном стиле, проверяет орфографию и согласует падежи.
   </p>
   <div class="head__meta">
     <button

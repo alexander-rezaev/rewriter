@@ -165,7 +165,12 @@ async function checkAdmin(key) {
   const response = await fetch("/api/feedback/admin", { headers: { "X-Model-Key": key } });
   if (!response.ok) return false;
   admin = true;
-  if (adminBtn) adminBtn.textContent = "Удаление включено";
+  if (adminBtn) {
+    // подпись меняется внутри ссылки, иконка остаётся
+    const label = adminBtn.querySelector(".rail__label");
+    if (label) label.textContent = "Удаление включено";
+    else adminBtn.textContent = "Удаление включено";
+  }
   render();
   return true;
 }

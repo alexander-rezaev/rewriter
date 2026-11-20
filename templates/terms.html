@@ -1,61 +1,54 @@
-<!DOCTYPE html>
-<html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Словарь терминов</title>
-    <link rel="icon" href="/static/favicon.ico" sizes="any" />
-    <link rel="icon" href="/static/favicon.png" type="image/png" />
-    <link rel="stylesheet" href="/static/style.css?v=33" />
-  </head>
-  <body>
-    <header class="app-header">
-      <a class="brand" href="/">Рерайтер</a>
-      <div class="header-end">
-      <nav class="top-nav">
-        <a class="nav-btn" href="/">Назад к рерайтеру</a>
-        <a class="nav-btn" href="/feedback">Идеи</a>
-      </nav>
-      </div>
-    </header>
-    <main class="page terms-page">
-      <section class="panel">
-        <div class="panel-head">
-          <h2>Словарь терминов</h2>
-        </div>
-        <p class="mode-hint">
-          Эти слова и обозначения не перефразируются: как записали, так и останутся в тексте.
-        </p>
-        <form id="term-form" class="term-add">
-          <label class="sr-only" for="term-input">Термин</label>
-          <input
-            id="term-input"
-            name="term"
-            type="text"
-            maxlength="120"
-            placeholder="Введите термин: список покажет, есть ли он уже"
-            autocomplete="off"
-          />
-          <button type="submit" id="term-add-btn">Добавить</button>
-        </form>
-        <p class="hint" id="term-status"></p>
-        <p class="form-error" id="term-error" hidden></p>
-        <div class="term-table-wrap">
-          <table class="term-table" id="term-table">
-            <thead>
-              <tr>
-                <th scope="col">№</th>
-                <th scope="col">Термин</th>
-                <th scope="col"><span class="sr-only">Действия</span></th>
-              </tr>
-            </thead>
-            <tbody id="term-body"></tbody>
-          </table>
-          <p class="term-empty" id="term-empty" hidden>Пока пусто — добавьте термин, чтобы зафиксировать написание.</p>
-        </div>
-      </section>
-    </main>
-    <script src="/static/terms.js?v=19"></script>
-    <p class="app-version">версия 2.0</p>
-  </body>
-</html>
+{% extends "base.html" %}
+
+{% block title %}Словарь терминов: Рерайтер{% endblock %}
+{% block description %}Термины, которые рерайтер не меняет: добавьте слово или обозначение, чтобы оно осталось в тексте как записано.{% endblock %}
+{% block bodyclass %}page-terms{% endblock %}
+
+{% block main %}
+<header class="head">
+  <h1 class="head__title">Словарь терминов</h1>
+  <p class="t-lead head__lead">
+    Эти слова и обозначения не перефразируются: как записали, так и останутся в тексте. Одно поле
+    и ищет термин, и добавляет его.
+  </p>
+</header>
+
+<section class="card page-card" aria-labelledby="terms-heading">
+  <h2 class="sr-only" id="terms-heading">Термины</h2>
+
+  <form id="term-form" class="term-add">
+    <label class="sr-only" for="term-input">Термин</label>
+    <input
+      id="term-input"
+      name="term"
+      type="text"
+      maxlength="120"
+      placeholder="Введите термин: список покажет, есть ли он уже"
+      autocomplete="off"
+    />
+    <button type="submit" class="btn btn--primary" id="term-add-btn">Добавить</button>
+  </form>
+  <p class="hint" id="term-status"></p>
+  <p class="form-error" id="term-error" hidden></p>
+
+  <div class="term-table-wrap">
+    <table class="term-table" id="term-table">
+      <thead>
+        <tr>
+          <th scope="col">№</th>
+          <th scope="col">Термин</th>
+          <th scope="col"><span class="sr-only">Действия</span></th>
+        </tr>
+      </thead>
+      <tbody id="term-body"></tbody>
+    </table>
+    <p class="term-empty" id="term-empty" hidden>
+      Пока пусто — добавьте термин, чтобы зафиксировать написание.
+    </p>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/terms.js?v=19"></script>
+{% endblock %}

@@ -1,135 +1,148 @@
-<!DOCTYPE html>
-<html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Рерайтер</title>
-    <link rel="icon" href="/static/favicon.ico" sizes="any" />
-    <link rel="icon" href="/static/favicon.png" type="image/png" />
-    <link rel="stylesheet" href="/static/style.css?v=33" />
-  </head>
-  <body>
-    <header class="app-header">
-      <a class="brand" href="/">Рерайтер</a>
-      <div class="header-end">
-      <nav class="top-nav top-nav-home">
-        <div class="site-meters">
-          <button type="button" class="meter app-like" id="app-like" aria-pressed="false" aria-label="Оценка приложения. Нажмите, если нравится">
-            <span class="meter-heart" id="app-like-heart" aria-hidden="true">♡</span>
-            <span class="meter-copy">
-              <span class="meter-label">Оценка</span>
-              <span class="meter-value" id="app-like-count">0</span>
-              <span class="meter-hint" id="app-like-hint">Нажмите, если нравится</span>
-            </span>
-          </button>
-          <div class="meter">
-            <span class="meter-copy">
-              <span class="meter-label">Использований</span>
-              <span class="meter-value" id="rewrite-count">0</span>
-            </span>
-          </div>
-        </div>
-        <div class="nav-actions">
-          <button type="button" class="nav-btn" id="model-unlock" {% if not model_choice %}hidden{% endif %}>
-            Выбор модели
-          </button>
-          <a class="nav-btn" id="terms-link" href="/terms">Словарь терминов</a>
-          <a class="nav-btn" id="ideas-link" href="/feedback">Идеи</a>
-        </div>
-      </nav>
+{% extends "base.html" %}
+
+{% block title %}Рерайтер: переписать текст и проверить орфографию{% endblock %}
+{% block description %}Локальный рерайтер команды: пересказ в выбранном стиле, проверка орфографии и согласование падежей. Без регистрации.{% endblock %}
+
+{% block rail_foot %}
+<button type="button" class="rail__link" id="model-unlock" {% if not model_choice %}hidden{% endif %}>
+  <svg class="rail__ico" viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M3 6.5h14M3 13.5h14M7 3.5v6M13 10.5v6" />
+  </svg>
+  <span class="rail__label">Выбор модели</span>
+</button>
+{% endblock %}
+
+{% block main %}
+<header class="head">
+  <h1 class="head__title">Переписать текст в нужном стиле</h1>
+  <p class="t-lead head__lead">
+    Пересказывает текст, проверяет орфографию и согласует падежи. Модель работает на этом
+    компьютере, регистрация не нужна.
+  </p>
+  <div class="head__meta">
+    <button
+      type="button"
+      class="meter"
+      id="app-like"
+      aria-pressed="false"
+      aria-label="Оценка приложения. Нажмите, если нравится"
+    >
+      <span class="meter__heart" id="app-like-heart" aria-hidden="true">♡</span>
+      <span class="meter__text">
+        <span class="meter__value" id="app-like-count">0</span>
+        <span class="meter__hint" id="app-like-hint">Нажмите, если нравится</span>
+      </span>
+    </button>
+    <p class="meter meter--static">
+      <span class="meter__text">
+        <span class="meter__value" id="rewrite-count">0</span>
+        <span class="meter__hint">использований</span>
+      </span>
+    </p>
+  </div>
+</header>
+
+<form id="rewrite-form" class="workspace">
+  <section class="card controls" aria-labelledby="controls-heading">
+    <h2 class="sr-only" id="controls-heading">Настройки обработки</h2>
+
+    <div class="control">
+      <p class="t-label control__label" id="mode-label">Режим</p>
+      <div class="modes" role="group" aria-labelledby="mode-label">
+        <button type="button" class="mode-btn is-active" data-mode="rewrite" id="mode-rewrite">
+          Переписать
+        </button>
+        <button type="button" class="mode-btn" data-mode="proofread" id="mode-proofread">
+          Орфография и грамматика
+        </button>
+        <button type="button" class="mode-btn" data-mode="grammar" id="mode-grammar">
+          Падежи и согласование
+        </button>
       </div>
-    </header>
-    <main class="page">
-      <form id="rewrite-form" class="workspace">
-        <section class="panel toolbar">
-          <h2>Режим</h2>
-          <div class="modes" role="group" aria-label="Режим обработки">
-            <button type="button" class="mode-btn is-active" data-mode="rewrite" id="mode-rewrite">
-              Переписать
-            </button>
-            <button type="button" class="mode-btn" data-mode="proofread" id="mode-proofread">
-              Проверить орфографию и грамматику
-            </button>
-            <button type="button" class="mode-btn" data-mode="grammar" id="mode-grammar">
-              Падежи и согласование
-            </button>
-          </div>
-          <input type="hidden" name="mode" id="mode-input" value="rewrite" />
+      <input type="hidden" name="mode" id="mode-input" value="rewrite" />
+    </div>
 
-          <div id="style-block">
-            <h2>Стиль</h2>
-            <div class="styles" role="radiogroup" aria-label="Стиль переписывания">
-              {% for style in styles %}
-              <label class="style-card">
-                <input
-                  type="radio"
-                  name="style"
-                  value="{{ style.id }}"
-                  {% if loop.first %}checked{% endif %}
-                />
-                <span {% if style.id == "simple" %}id="style-simple-label"{% endif %}>{{ style.name }}</span>
-              </label>
-              {% endfor %}
-            </div>
-          </div>
+    <div class="control" id="style-block">
+      <p class="t-label control__label" id="style-label">Стиль</p>
+      <div class="styles" role="radiogroup" aria-labelledby="style-label">
+        {% for style in styles %}
+        <label class="style-card">
+          <input
+            type="radio"
+            name="style"
+            value="{{ style.id }}"
+            {% if loop.first %}checked{% endif %}
+          />
+          <span {% if style.id == "simple" %}id="style-simple-label"{% endif %}>{{ style.name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
 
-          <div class="toolbar-actions">
-            <label class="model-field" id="model-field" for="model-select" hidden>
-              <span>Модель</span>
-              <select id="model-select"></select>
-            </label>
-            <button type="submit" id="rewrite-btn">Переписать</button>
-            <button type="button" id="word-btn" hidden>Загрузить Word</button>
-            <input id="word-file" type="file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden />
-            <button type="button" id="stop-btn" hidden>Остановить</button>
-            <span class="hint timer" id="elapsed" hidden></span>
-            <p class="hint queue-note" id="queue-note" hidden aria-live="polite"></p>
-            <div class="progress" id="progress" hidden>
-              <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
-              <span class="hint" id="progress-label"></span>
-            </div>
-          </div>
-          <p class="hint" id="model-hint"></p>
-          <p class="form-error" id="form-error" hidden></p>
-        </section>
+    <div class="controls__foot">
+      <label class="model-field" id="model-field" for="model-select" hidden>
+        <span>Модель</span>
+        <select id="model-select"></select>
+      </label>
+      <span class="hint timer" id="elapsed" hidden></span>
+      <p class="hint queue-note" id="queue-note" hidden aria-live="polite"></p>
+      <div class="progress" id="progress" hidden>
+        <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progress-bar"></div></div>
+        <span class="hint" id="progress-label"></span>
+      </div>
+      <div class="controls__buttons">
+        <button type="button" class="btn btn--secondary" id="word-btn" hidden>Загрузить Word</button>
+        <button type="button" class="btn btn--secondary" id="stop-btn" hidden>Остановить</button>
+        <button type="submit" class="btn btn--primary" id="rewrite-btn">Переписать</button>
+      </div>
+      <input
+        id="word-file"
+        type="file"
+        accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        hidden
+      />
+    </div>
+    <p class="hint" id="model-hint"></p>
+    <p class="form-error" id="form-error" hidden></p>
+  </section>
 
-        <div class="compare">
-          <section class="panel source-panel">
-            <div class="panel-head">
-              <h2>Исходный текст</h2>
-              <span class="hint" id="char-count">0 знаков</span>
-            </div>
-            <p class="legend legend-spacer" aria-hidden="true">&nbsp;</p>
-            <p class="stats stats-spacer" id="stats-spacer" hidden aria-hidden="true">&nbsp;</p>
-            <label class="sr-only" id="source-label">Текст для переписывания</label>
-            <div
-              id="source-text"
-              class="source-text"
-              contenteditable="true"
-              role="textbox"
-              aria-multiline="true"
-              aria-labelledby="source-label"
-              data-placeholder="Вставьте сюда абзац, статью или служебный текст…"
-              data-empty="true"
-            ></div>
-          </section>
+  <div class="compare">
+    <section class="card editor source-panel">
+      <div class="editor__head">
+        <h2 class="editor__title">Исходный текст</h2>
+        <span class="hint editor__count" id="char-count">0 знаков</span>
+      </div>
+      <p class="legend legend-spacer" aria-hidden="true">&nbsp;</p>
+      <p class="stats stats-spacer" id="stats-spacer" hidden aria-hidden="true">&nbsp;</p>
+      <label class="sr-only" id="source-label">Текст для переписывания</label>
+      <div
+        id="source-text"
+        class="source-text"
+        contenteditable="true"
+        role="textbox"
+        aria-multiline="true"
+        aria-labelledby="source-label"
+        data-placeholder="Вставьте сюда абзац, статью или служебный текст…"
+        data-empty="true"
+      ></div>
+    </section>
 
-          <section class="panel result-panel">
-            <div class="panel-head">
-              <h2 id="result-title">Переписанный текст</h2>
-              <button type="button" class="ghost" id="copy-btn" hidden>Копировать</button>
-            </div>
-            <p class="legend" id="result-legend"></p>
-            <p class="stats" id="result-stats" hidden></p>
-            <div class="result" id="result" aria-live="polite">
-              <p class="placeholder">Здесь появится переписанный текст.</p>
-            </div>
-          </section>
-        </div>
-      </form>
-    </main>
-    <script src="/static/highlight.js?v=22"></script>
-    <script src="/static/app.js?v=37"></script>
-    <p class="app-version">версия 2.0</p>
-  </body>
-</html>
+    <section class="card editor result-panel">
+      <div class="editor__head">
+        <h2 class="editor__title" id="result-title">Переписанный текст</h2>
+        <button type="button" class="ghost" id="copy-btn" hidden>Копировать</button>
+      </div>
+      <p class="legend" id="result-legend"></p>
+      <p class="stats" id="result-stats" hidden></p>
+      <div class="result" id="result" aria-live="polite">
+        <p class="placeholder">Здесь появится переписанный текст.</p>
+      </div>
+    </section>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/highlight.js?v=22"></script>
+<script src="/static/app.js?v=37"></script>
+{% endblock %}

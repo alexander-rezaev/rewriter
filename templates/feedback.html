@@ -1,48 +1,52 @@
-<!DOCTYPE html>
-<html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Отзывы и идеи</title>
-    <link rel="icon" href="/static/favicon.ico" sizes="any" />
-    <link rel="icon" href="/static/favicon.png" type="image/png" />
-    <link rel="stylesheet" href="/static/style.css?v=33" />
-  </head>
-  <body>
-    <header class="app-header">
-      <a class="brand" href="/">Рерайтер</a>
-      <div class="header-end">
-      <nav class="top-nav">
-        <a class="nav-btn" href="/">Назад к рерайтеру</a>
-        <button type="button" class="nav-btn" id="feedback-admin" {% if not model_choice %}hidden{% endif %}>
-          Удаление идей
-        </button>
-      </nav>
+{% extends "base.html" %}
+
+{% block title %}Отзывы и идеи: Рерайтер{% endblock %}
+{% block description %}Отзывы и идеи о рерайтере: что улучшить и что уже работает. Имя можно не указывать.{% endblock %}
+{% block bodyclass %}page-feedback{% endblock %}
+
+{% block rail_foot %}
+<button type="button" class="rail__link" id="feedback-admin" {% if not model_choice %}hidden{% endif %}>
+  <svg class="rail__ico" viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M3 6.5h14M3 13.5h14M7 3.5v6M13 10.5v6" />
+  </svg>
+  <span class="rail__label">Удаление идей</span>
+</button>
+{% endblock %}
+
+{% block main %}
+<header class="head">
+  <h1 class="head__title">Отзывы и идеи</h1>
+  <p class="t-lead head__lead">
+    Что улучшить в рерайтере и что уже работает. Имя можно не указывать, чужие идеи отмечают
+    сердечком.
+  </p>
+</header>
+
+<section class="card page-card" aria-labelledby="feedback-heading">
+  <div class="feedback-panel">
+    <h2 class="sr-only" id="feedback-heading">Отзывы и идеи</h2>
+    <div class="feedback-intro">
+      <button type="button" class="btn btn--primary" id="feedback-open">Отправить идею</button>
+    </div>
+
+    <form id="feedback-form" class="feedback-form" hidden>
+      <label for="feedback-name">Имя</label>
+      <input id="feedback-name" type="text" maxlength="80" placeholder="Можно не указывать" autocomplete="name" />
+      <label for="feedback-text">Отзыв или идея</label>
+      <textarea id="feedback-text" maxlength="1000" required placeholder="Напишите здесь"></textarea>
+      <div class="feedback-actions">
+        <button type="submit" class="btn btn--primary" id="feedback-submit">Отправить</button>
+        <button type="button" class="btn btn--secondary" id="feedback-close">Закрыть</button>
       </div>
-    </header>
-    <main class="page feedback-page">
-      <section class="panel feedback-panel">
-        <header class="feedback-intro">
-          <h2>Отзывы и идеи</h2>
-          <p>Это страница с отзывами и идеями.</p>
-        </header>
-        <button type="button" id="feedback-open">Отправить идею</button>
-        <form id="feedback-form" class="feedback-form" hidden>
-          <label for="feedback-name">Имя</label>
-          <input id="feedback-name" type="text" maxlength="80" placeholder="Можно не указывать" autocomplete="name" />
-          <label for="feedback-text">Отзыв или идея</label>
-          <textarea id="feedback-text" maxlength="1000" required placeholder="Напишите здесь"></textarea>
-          <div class="feedback-actions">
-            <button type="submit" id="feedback-submit">Отправить</button>
-            <button type="button" class="ghost" id="feedback-close">Закрыть</button>
-          </div>
-        </form>
-        <p class="form-error" id="feedback-error" hidden></p>
-        <div id="feedback-list" class="feedback-list"></div>
-        <p class="term-empty" id="feedback-empty" hidden>Пока отзывов и идей нет.</p>
-      </section>
-    </main>
-    <script src="/static/feedback.js?v=23"></script>
-    <p class="app-version">версия 2.0</p>
-  </body>
-</html>
+    </form>
+
+    <p class="form-error" id="feedback-error" hidden></p>
+    <div id="feedback-list" class="feedback-list"></div>
+    <p class="term-empty" id="feedback-empty" hidden>Пока отзывов и идей нет.</p>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/feedback.js?v=24"></script>
+{% endblock %}
